@@ -33,8 +33,8 @@ bool ColorShaderClass::Initialize(ID3D11Device* pDevice, HWND hwnd)
 	vertexShaderBuffer = 0;
 	pixelShaderBuffer = 0;
 
-	result = D3DX11CompileFromFile(vsFilename, NULL, NULL, "main", "vs_4_0",
-		D3DCOMPILE_ENABLE_STRICTNESS, 0, NULL, &vertexShaderBuffer, &errorMessage, NULL);
+	result = D3DCompileFromFile(vsFilename, NULL, NULL, "main", "vs_4_0",
+		D3DCOMPILE_ENABLE_STRICTNESS, 0, &vertexShaderBuffer, &errorMessage);
 
 	if (FAILED(result))
 	{
@@ -52,8 +52,8 @@ bool ColorShaderClass::Initialize(ID3D11Device* pDevice, HWND hwnd)
 		return false;
 	}
 
-	result = D3DX11CompileFromFile(psFilename, NULL, NULL, "main", "ps_4_0",
-		D3DCOMPILE_ENABLE_STRICTNESS, 0, NULL, &pixelShaderBuffer, &errorMessage, NULL);
+	result = D3DCompileFromFile(psFilename, NULL, NULL, "main", "ps_4_0",
+		D3DCOMPILE_ENABLE_STRICTNESS, 0, &pixelShaderBuffer, &errorMessage);
 
 	if (FAILED(result))
 	{
@@ -153,124 +153,6 @@ bool ColorShaderClass::Render(ID3D11DeviceContext* pDeviceContext, XMMATRIX worl
 	pDeviceContext->IASetInputLayout(m_layout);
 	pDeviceContext->VSSetShader(m_vertexShader, NULL, 0);
 	pDeviceContext->PSSetShader(m_pixelShader, NULL, 0);
-
-	return true;
-}
-
-
-bool ColorShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, CONST WCHAR* vsFilename, CONST WCHAR* psFilename)
-{
-	HRESULT result;
-	ID3DBlob* errorMessage;
-	ID3DBlob* vertexShaderBuffer;
-	ID3DBlob* pixelShaderBuffer;
-	D3D11_INPUT_ELEMENT_DESC polygonLayout[2];
-	unsigned int numElements;
-	D3D11_BUFFER_DESC matrixBufferDesc;
-
-	errorMessage = 0;
-	vertexShaderBuffer = 0;
-	pixelShaderBuffer = 0;
-
-	result = D3DX11CompileFromFile(vsFilename, NULL, NULL, "main", "vs_4_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, NULL,
-		&vertexShaderBuffer, &errorMessage, NULL);
-	if (FAILED(result))
-	{
-		//파일로부터 컴파일에 실패했을 경우 오류 메시지를 파일로 생성
-		if (errorMessage)
-		{
-			OutputShaderErrorMessage(errorMessage, hwnd);
-		}
-		//만약 오류 메시지가 없을 경우 파일을 찾을 수 없다는 의미
-		else
-		{
-			MessageBox(hwnd, vsFilename, L"Missing Shader File", MB_OK);
-		}
-
-		return false;
-	}
-
-	result = D3DX11CompileFromFile(psFilename, NULL, NULL, "main", "ps_4_0", D3DCOMPILE_ENABLE_STRICTNESS, 0, NULL,
-		&pixelShaderBuffer, &errorMessage, NULL);
-	if (FAILED(result))
-	{
-		//파일로부터 컴파일에 실패했을 경우 오류 메시지를 파일로 생성
-		if (errorMessage)
-		{
-			OutputShaderErrorMessage(errorMessage, hwnd);
-		}
-		//만약 오류 메시지가 없을 경우 파일을 찾을 수 없다는 의미
-		else
-		{
-			MessageBox(hwnd, psFilename, L"Missing Shader File", MB_OK);
-		}
-
-		return false;
-	}
-
-	//정점 쉐이더 생성
-	result = device->CreateVertexShader(vertexShaderBuffer->GetBufferPointer(), vertexShaderBuffer->GetBufferSize(), NULL, &m_vertexShader);
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	//픽셀 쉐이더 생성
-	result = device->CreatePixelShader(pixelShaderBuffer->GetBufferPointer(), pixelShaderBuffer->GetBufferSize(), NULL, &m_pixelShader);
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	//쉐이더의 입력 데이터를 정의
-	polygonLayout[0].SemanticName = "POSITION";
-	polygonLayout[0].SemanticIndex = 0;
-	polygonLayout[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
-	polygonLayout[0].InputSlot = 0;
-	polygonLayout[0].AlignedByteOffset = 0;
-	polygonLayout[0].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-	polygonLayout[0].InstanceDataStepRate = 0;
-
-	polygonLayout[1].SemanticName = "COLOR";
-	polygonLayout[1].SemanticIndex = 0;
-	polygonLayout[1].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	polygonLayout[1].InputSlot = 0;
-	polygonLayout[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
-	polygonLayout[1].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
-	polygonLayout[1].InstanceDataStepRate = 0;
-
-	//입력 데이터의 개수
-	numElements = sizeof(polygonLayout) / sizeof(polygonLayout[0]);
-
-	//정점 입력 레이아웃 생성 (픽셀 쉐이더는 불가능)
-	result = device->CreateInputLayout(polygonLayout, numElements, vertexShaderBuffer->GetBufferPointer(),
-		vertexShaderBuffer->GetBufferSize(), &m_layout);
-	if (FAILED(result))
-	{
-		return false;
-	}
-
-	//정점, 픽셀 쉐이더 버퍼 해제
-	vertexShaderBuffer->Release();
-	vertexShaderBuffer = 0;
-
-	pixelShaderBuffer->Release();
-	pixelShaderBuffer = 0;
-
-	//상수 버퍼 설정
-	matrixBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	matrixBufferDesc.ByteWidth = sizeof(MatrixBuffer);
-	matrixBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	matrixBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	matrixBufferDesc.MiscFlags = 0;
-	matrixBufferDesc.StructureByteStride = 0;
-
-	//상수 버퍼 생성
-	result = device->CreateBuffer(&matrixBufferDesc, NULL, &m_matrixBuffer);
-	if (FAILED(result))
-	{
-		return false;
-	}
 
 	return true;
 }
